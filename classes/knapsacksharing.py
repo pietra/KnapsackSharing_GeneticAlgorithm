@@ -30,3 +30,13 @@ class KnapsackSharing:
             groupIndex += 1
 
         f.close()
+
+    def generatingGlpkData(self):
+        return
+
+
+
+
+
+
+
