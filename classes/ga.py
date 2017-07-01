@@ -5,25 +5,34 @@ import random
 
 class GeneticAlgorithm:
     def __init__(self, seed):
-        self.SIZE_POPULATION = 16
-        self.SAME_FITNESS_VALUE_PERCENT = 0.9
-        self.MAX_GENERATION = 1000
-        self.NUM_CHROMOSOMES_TOURNAMENT_SELECTION = 5
+        self.SIZE_POPULATION = 60
+        self.MAX_GENERATION = 10000
+        self.SAME_FITNESS_GENERATIONS = 0
+        self.NUM_CHROMOSOMES_TOURNAMENT_SELECTION = 20
+        self.MUTATION_TAX = 1  # 0.001 %
+        self.NUM_CLONED_CHROMOSOMES = 2
+        self.bestFitness = None
+        self.bestFitnessChromosome = None
         self.seed = seed
         self.problemInstance = KnapsackSharing()
         self.population = None
-        self.currentGeneration = 1
+        self.currentGeneration = 0
 
     def generateChromosome(self):
 
-        # Inicializing chromosome struct
+        # Initializing chromosome struct
         chromosome = [[] for _ in range(self.problemInstance.numGroups)]
 
         groupIndex = 0
 
         for numItems in self.problemInstance.numItemsByGroups:  # Passing by each group
             for j in range(int(numItems)):  # Passing by each item of group
-                chromosome[groupIndex].append(random.randint(0, 1))  # Is the item in the bag? Randomly decides
+                random.seed(self.problemInstance.seed)
+                p = (random.randint(0, 100))  # Generates a random probability of the item be in the bag
+                if random.randint(0, 100) < p:
+                    chromosome[groupIndex].append(1)  # Is the item in the bag? Randomly decides
+                else:
+                    chromosome[groupIndex].append(0)
             groupIndex += 1
 
         return chromosome
@@ -52,60 +61,46 @@ class GeneticAlgorithm:
             groupIndex += 1
 
         # If the volume of items in the chromosome > bag capacity
-        # Remove items from the groups with the max benefits until volume <= bag capacity
-        # Why correct infeasible solutions here? Because this way we avoid another loop n^2
+        # Fitness is decreased proportionally
         if volume > self.problemInstance.capacity:
-            fitInTheBag = 0
-            while (fitInTheBag == 0):
-                maxBenefitGroupIndex = groupsBenefits.index(
-                    max(groupsBenefits))  # Index of the group with the max benefit
-                randomItemIndex = random.randint(0,  # Index of a random item
-                                                 int(self.problemInstance.numItemsByGroups[maxBenefitGroupIndex]) - 1)
-                if chromosome[maxBenefitGroupIndex][randomItemIndex] == 1:  # If the item is in the bag, remove it
-                    chromosome[maxBenefitGroupIndex][randomItemIndex] = 0
-                    volume -= self.problemInstance.items[maxBenefitGroupIndex][randomItemIndex][0]
-                    groupsBenefits[maxBenefitGroupIndex] -= \
-                        self.problemInstance.items[maxBenefitGroupIndex][randomItemIndex][1]
-                    if volume <= self.problemInstance.capacity:
-                        fitInTheBag = 1
-
-        return min(groupsBenefits)  # Returns the benefit of the group with the min benefit
-
-    def checkPercentual(self, array):
-
-        mostCommonElement = Counter(array).most_common(1)
-
-        # If more than PERCENT_SAME_FITNESS_VALUE fitness values are equal
-        if mostCommonElement[1] >= (self.SAME_FITNESS_VALUE_PERCENT * len(array)):
-            # If the generation passed the limit
-            if self.currentGeneration >= self.MAX_GENERATION:
-                return mostCommonElement[0]
-            else:
-                return -1
+            return int(self.problemInstance.capacity / volume * min(groupsBenefits))
         else:
-            return -1
+            return min(groupsBenefits)  # Returns the benefit of the group with the min benefit
 
     def crossover(self, chromosome1, chromosome2):
 
-        chromosome3 = [[] for _ in range(self.problemInstance.numGroups)]
-        chromosome4 = [[] for _ in range(self.problemInstance.numGroups)]
+        # 75% of chance to choose bit of the chromosome with better fitness
 
-        index = 0
+        if self.chromosomeFitness(chromosome1) > self.chromosomeFitness(chromosome2):
+            higherFitnessChromosome = chromosome1
+            lowerFitnessChromosome = chromosome2
+        else:
+            higherFitnessChromosome = chromosome2
+            lowerFitnessChromosome = chromosome1
+
+        chromosomeSon = [[] for _ in range(self.problemInstance.numGroups)]
+
         groupIndex = 0
 
         for numItems in self.problemInstance.numItemsByGroups:
-            for item in range((int(numItems) // 2) - 1):  # Passing by each item of group
-                chromosome3[groupIndex].append(chromosome1[groupIndex][item])
-                chromosome4[groupIndex].append(chromosome2[groupIndex][item])
-                index += 1
-            for item in range(index, int(numItems)):  # Passing by each item of group
-                chromosome3[groupIndex].append(chromosome2[groupIndex][item])
-                chromosome4[groupIndex].append(chromosome1[groupIndex][item])
-                index += 1
+            for item in range(int(numItems)):  # Passing by each item of group
+                prob = random.randint(1, 100)
+                if prob <= 75:
+                    chromosomeSon[groupIndex].append(higherFitnessChromosome[groupIndex][item])
+                else:
+                    chromosomeSon[groupIndex].append(lowerFitnessChromosome[groupIndex][item])
+                # Probability of mutation = 0.001%
+                random.seed(self.seed)
+                probMutation = random.randint(self.MUTATION_TAX, 1000)
+                # If mutation, flip bit
+                if probMutation <= self.MUTATION_TAX:
+                    if chromosomeSon[groupIndex][item] == 1:
+                        chromosomeSon[groupIndex][item] = 0
+                    else:
+                        chromosomeSon[groupIndex][item] = 1
             groupIndex += 1
-            index = 0
 
-        return chromosome3, chromosome4
+        return chromosomeSon
 
     def tournamentSelection(self):
 
@@ -113,35 +108,77 @@ class GeneticAlgorithm:
         competitorsIndex = [0 for _ in range(self.NUM_CHROMOSOMES_TOURNAMENT_SELECTION)]
 
         for j in range(self.NUM_CHROMOSOMES_TOURNAMENT_SELECTION):
+            random.seed(self.problemInstance.seed)
             randomIndex = random.randint(0, len(self.population) - 1)
             competitorsIndex[j] = randomIndex
             competitorsFitness[j] = self.chromosomeFitness(self.population[randomIndex])
+
         winnerChromosome = self.population[competitorsIndex[competitorsFitness.index(max(competitorsFitness))]]
 
         return winnerChromosome
+
+    def groupSelection(self):
+        # Sorts the population by fitness. 75% of chance to pick a chromosome from the first half of the population
+        populationFitness = []
+        chromosomeIndexes = []
+
+        # Calculates the fitness for all population
+        for i in range(len(self.population)):
+            populationFitness.append(self.chromosomeFitness(self.population[i]))
+
+        # Sorts population by fitness
+        for i in range(len(self.population)):
+            indexBestFitness = populationFitness.index(max(populationFitness))
+            chromosomeIndexes.append(indexBestFitness)
+            populationFitness[indexBestFitness] = 0  # The best fitness is not the best fitness anymore
+
+        random.seed(self.problemInstance.seed)
+        prob = random.randint(1, 100)
+
+        # 75% of chance to be one chromosome from the first half of the population
+        if prob <= 60:
+            random.seed(self.problemInstance.seed)
+            indexFromFirstPart = random.randint(0, self.SIZE_POPULATION // 2)
+            chromosomeWinnerIndex = chromosomeIndexes[indexFromFirstPart]
+            return self.population[chromosomeIndexes[chromosomeWinnerIndex]]
+        else:
+            random.seed(self.problemInstance.seed)
+            indexFromSecondPart = random.randint(self.SIZE_POPULATION // 2 + 1, self.SIZE_POPULATION - 1)
+            chromosomeWinnerIndex = chromosomeIndexes[indexFromSecondPart]
+            return self.population[chromosomeIndexes[chromosomeWinnerIndex]]
 
     def generatingNewPopulation(self):
 
         # POPULATION DATA STRUCT: List (chromosomes) of lists (groups) of lists (items) of numbers 0|1
         newPopulation = [[] for _ in range(self.SIZE_POPULATION)]
 
-        # Inicializing population struct
+        # Initializing population data struct
         for i in range(self.SIZE_POPULATION):
             for j in range(self.problemInstance.numGroups):
                 newPopulation[i].append([])
 
         chromosomeIndex = 0
 
-        # 3/4 of the population come from previous populations, 1/4 come from new chromosomes
-        for i in range((len(self.population) // 4) * 3):
-            crossoverResult = self.crossover(self.tournamentSelection(), self.tournamentSelection())
-            newPopulation[i] = crossoverResult[0]
-            newPopulation[i + 1] = crossoverResult[1]
-            i += 2
+        # ~50% of the population come from crossover
+        for i in range(self.SIZE_POPULATION // 2):
+            newPopulation[i] = self.crossover(self.groupSelection(), self.groupSelection())
             chromosomeIndex = i
 
-        for i in range(chromosomeIndex, (len(self.population))):
+        # And ~50% come from new chromosomes
+        for i in range(chromosomeIndex + 1, self.SIZE_POPULATION - self.NUM_CLONED_CHROMOSOMES + 1):
             newPopulation[i] = self.generateChromosome()
+            chromosomeIndex = i
+
+        populationFitness = []
+
+        # But NUM_CLONED_CHROMOSOMES come from the best of the previous generation
+        for j in range(self.SIZE_POPULATION):
+            populationFitness.append(self.chromosomeFitness(self.population[j]))
+
+        for i in range(chromosomeIndex, self.SIZE_POPULATION):
+            indexBestFitness = populationFitness.index(max(populationFitness))
+            newPopulation[i] = self.population[indexBestFitness]
+            populationFitness[indexBestFitness] = 0
 
         self.currentGeneration += 1
         self.population = newPopulation
@@ -151,10 +188,12 @@ class GeneticAlgorithm:
         self.problemInstance.readingfile(file)
         self.generateFirstPopulation()
 
-        while self.currentGeneration < self.MAX_GENERATION:
-            self.generatingNewPopulation()
-            print("NEW GENERATION")
+        while 1:
+            print("GENERATION NUMBER ", self.currentGeneration)
             populationFitness = []
             for i in range(len(self.population)):
                 populationFitness.append(self.chromosomeFitness(self.population[i]))
-            print(max(populationFitness))
+            self.bestFitnessChromosome = self.population[populationFitness.index(max(populationFitness))]
+            self.bestFitness = max(populationFitness)
+            print("FITNESS: ", max(populationFitness))
+            self.generatingNewPopulation()
