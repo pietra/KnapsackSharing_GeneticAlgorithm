@@ -10,9 +10,7 @@ class GeneticAlgorithm:
         self.SAME_FITNESS_GENERATIONS = 0
         self.NUM_CHROMOSOMES_TOURNAMENT_SELECTION = 20
         self.MUTATION_TAX = 1  # 0.001 %
-        self.NUM_CLONED_CHROMOSOMES = 2
-        self.bestFitness = None
-        self.bestFitnessChromosome = None
+        self.NUM_CLONED_CHROMOSOMES = 1
         self.seed = seed
         self.problemInstance = KnapsackSharing()
         self.population = None
@@ -147,7 +145,7 @@ class GeneticAlgorithm:
             chromosomeWinnerIndex = chromosomeIndexes[indexFromSecondPart]
             return self.population[chromosomeIndexes[chromosomeWinnerIndex]]
 
-    def generatingNewPopulation(self):
+    def generatingNewPopulation(self, bestFromPreviousPopulation):
 
         # POPULATION DATA STRUCT: List (chromosomes) of lists (groups) of lists (items) of numbers 0|1
         newPopulation = [[] for _ in range(self.SIZE_POPULATION)]
@@ -172,16 +170,28 @@ class GeneticAlgorithm:
         populationFitness = []
 
         # But NUM_CLONED_CHROMOSOMES come from the best of the previous generation
-        for j in range(self.SIZE_POPULATION):
-            populationFitness.append(self.chromosomeFitness(self.population[j]))
-
-        for i in range(chromosomeIndex, self.SIZE_POPULATION):
-            indexBestFitness = populationFitness.index(max(populationFitness))
-            newPopulation[i] = self.population[indexBestFitness]
-            populationFitness[indexBestFitness] = 0
+        newPopulation[self.SIZE_POPULATION - 1] = bestFromPreviousPopulation
 
         self.currentGeneration += 1
         self.population = newPopulation
+
+    def feasibleSolution(self, chromosome):
+        groupIndex = 0
+        volume = 0
+
+        # Sum volumes and benefits of chromosome
+        for numItems in self.problemInstance.numItemsByGroups:  # Passing by each group
+            for j in range(int(numItems)):  # Passing by each item of group
+                if chromosome[groupIndex][j] == 1:  # If the item is in the bag
+                    volume += self.problemInstance.items[groupIndex][j][0]
+            groupIndex += 1
+
+        # If the volume of items in the chromosome > bag capacity
+        # Fitness is decreased proportionally
+        if volume > self.problemInstance.capacity:
+            return 0
+        else:
+            return 1
 
     def calculating(self, file):
 
@@ -189,11 +199,21 @@ class GeneticAlgorithm:
         self.generateFirstPopulation()
 
         while 1:
+
             print("GENERATION NUMBER ", self.currentGeneration)
+            foundTheBestFeasible = 0
             populationFitness = []
+
+            # Calculate fitness for all the chromosomes
             for i in range(len(self.population)):
                 populationFitness.append(self.chromosomeFitness(self.population[i]))
-            self.bestFitnessChromosome = self.population[populationFitness.index(max(populationFitness))]
-            self.bestFitness = max(populationFitness)
-            print("FITNESS: ", max(populationFitness))
-            self.generatingNewPopulation()
+
+            # Pick the best and feasible
+            while foundTheBestFeasible == 0:
+                candidateToBeTheBest = self.population[populationFitness.index(max(populationFitness))]
+                if self.feasibleSolution(candidateToBeTheBest) == 1:
+                    foundTheBestFeasible = 1
+                    print("FITNESS: ", max(populationFitness))
+                    self.generatingNewPopulation(candidateToBeTheBest)
+                else:
+                    populationFitness[populationFitness.index(max(populationFitness))] = 0
