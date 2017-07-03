@@ -59,11 +59,24 @@ class GeneticAlgorithm:
             groupIndex += 1
 
         # If the volume of items in the chromosome > bag capacity
-        # Fitness is decreased proportionally
+        # Remove items from the groups with the max benefits until volume <= bag capacity
+        # Why correct infeasible solutions here? Because this way we avoid another loop n^2
         if volume > self.problemInstance.capacity:
-            return int(self.problemInstance.capacity / volume * min(groupsBenefits))
-        else:
-            return min(groupsBenefits)  # Returns the benefit of the group with the min benefit
+            fitInTheBag = 0
+            while (fitInTheBag == 0):
+                maxBenefitGroupIndex = groupsBenefits.index(
+                    max(groupsBenefits))  # Index of the group with the max benefit
+                randomItemIndex = random.randint(0,  # Index of a random item
+                                                 int(self.problemInstance.numItemsByGroups[maxBenefitGroupIndex]) - 1)
+                if chromosome[maxBenefitGroupIndex][randomItemIndex] == 1:  # If the item is in the bag, remove it
+                    chromosome[maxBenefitGroupIndex][randomItemIndex] = 0
+                    volume -= self.problemInstance.items[maxBenefitGroupIndex][randomItemIndex][0]
+                    groupsBenefits[maxBenefitGroupIndex] -= \
+                        self.problemInstance.items[maxBenefitGroupIndex][randomItemIndex][1]
+                    if volume <= self.problemInstance.capacity:
+                        fitInTheBag = 1
+
+        return min(groupsBenefits)  # Returns the benefit of the group with the min benefit
 
     def crossover(self, chromosome1, chromosome2):
 
@@ -162,24 +175,19 @@ class GeneticAlgorithm:
             newPopulation[i] = self.crossover(self.groupSelection(), self.groupSelection())
             chromosomeIndex = i
 
-        if bestFromPreviousPopulation != None:
-            # And ~50% come from new chromosomes
-            for i in range(chromosomeIndex + 1, self.SIZE_POPULATION - self.NUM_CLONED_CHROMOSOMES + 1):
-                newPopulation[i] = self.generateChromosome()
-                chromosomeIndex = i
+        # And ~50% come from new chromosomes
+        for i in range(chromosomeIndex + 1, self.SIZE_POPULATION - self.NUM_CLONED_CHROMOSOMES + 1):
+            newPopulation[i] = self.generateChromosome()
+            chromosomeIndex = i
 
-            # But NUM_CLONED_CHROMOSOMES come from the best of the previous generation
-            newPopulation[self.SIZE_POPULATION - 1] = bestFromPreviousPopulation
-        else:
-            # And ~50% come from new chromosomes
-            for i in range(chromosomeIndex + 1, self.SIZE_POPULATION):
-                newPopulation[i] = self.generateChromosome()
-                chromosomeIndex = i
+        # But NUM_CLONED_CHROMOSOMES come from the best of the previous generation
+        newPopulation[self.SIZE_POPULATION - 1] = bestFromPreviousPopulation
 
         self.currentGeneration += 1
         self.population = newPopulation
 
     def feasibleSolution(self, chromosome):
+        # NOT USED ANYMORE
         groupIndex = 0
         volume = 0
 
@@ -201,32 +209,18 @@ class GeneticAlgorithm:
 
         self.problemInstance.readingfile(file)
         self.generateFirstPopulation()
-        self.generatingNewPopulation(None)
 
         while 1:
 
             print("GENERATION NUMBER ", self.currentGeneration)
-            foundTheBestFeasible = 0
             populationFitness = []
 
             # Calculate fitness for all the chromosomes
             for i in range(len(self.population)):
                 populationFitness.append(self.chromosomeFitness(self.population[i]))
 
-            chromosomesCounter = 1
-            # Pick the best and feasible
-            while foundTheBestFeasible == 0:
-                # If none chromosome is feasible, newGeneration
+            # Chromosome with best fitness
+            bestChromosome = self.population[populationFitness.index(max(populationFitness))]
 
-                candidateToBeTheBest = self.population[populationFitness.index(max(populationFitness))]
-                if chromosomesCounter == self.SIZE_POPULATION:
-                    foundTheBestFeasible = 1
-                    self.generatingNewPopulation(candidateToBeTheBest)
-                else:
-                    if self.feasibleSolution(candidateToBeTheBest) == 1:
-                        foundTheBestFeasible = 1
-                        print("FITNESS: ", max(populationFitness))
-                        self.generatingNewPopulation(candidateToBeTheBest)
-                    else:
-                        chromosomesCounter += 1
-                        populationFitness[populationFitness.index(max(populationFitness))] = 0
+            print("FITNESS: ", max(populationFitness))
+            self.generatingNewPopulation(bestChromosome)
