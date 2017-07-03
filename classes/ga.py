@@ -172,7 +172,7 @@ class GeneticAlgorithm:
 
         # ~50% of the population come from crossover
         for i in range(self.SIZE_POPULATION // 2):
-            newPopulation[i] = self.crossover(self.groupSelection(), self.groupSelection())
+            newPopulation[i] = self.crossover(self.tournamentSelection(), self.tournamentSelection())
             chromosomeIndex = i
 
         # And ~50% come from new chromosomes
@@ -208,6 +208,7 @@ class GeneticAlgorithm:
     def calculating(self, file):
 
         self.problemInstance.readingfile(file)
+        self.problemInstance.generatingGlpkData()
         self.generateFirstPopulation()
 
         while 1:
