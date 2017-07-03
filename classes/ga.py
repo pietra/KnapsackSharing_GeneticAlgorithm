@@ -162,15 +162,19 @@ class GeneticAlgorithm:
             newPopulation[i] = self.crossover(self.groupSelection(), self.groupSelection())
             chromosomeIndex = i
 
-        # And ~50% come from new chromosomes
-        for i in range(chromosomeIndex + 1, self.SIZE_POPULATION - self.NUM_CLONED_CHROMOSOMES + 1):
-            newPopulation[i] = self.generateChromosome()
-            chromosomeIndex = i
+        if bestFromPreviousPopulation != None:
+            # And ~50% come from new chromosomes
+            for i in range(chromosomeIndex + 1, self.SIZE_POPULATION - self.NUM_CLONED_CHROMOSOMES + 1):
+                newPopulation[i] = self.generateChromosome()
+                chromosomeIndex = i
 
-        populationFitness = []
-
-        # But NUM_CLONED_CHROMOSOMES come from the best of the previous generation
-        newPopulation[self.SIZE_POPULATION - 1] = bestFromPreviousPopulation
+            # But NUM_CLONED_CHROMOSOMES come from the best of the previous generation
+            newPopulation[self.SIZE_POPULATION - 1] = bestFromPreviousPopulation
+        else:
+            # And ~50% come from new chromosomes
+            for i in range(chromosomeIndex + 1, self.SIZE_POPULATION):
+                newPopulation[i] = self.generateChromosome()
+                chromosomeIndex = i
 
         self.currentGeneration += 1
         self.population = newPopulation
@@ -197,6 +201,7 @@ class GeneticAlgorithm:
 
         self.problemInstance.readingfile(file)
         self.generateFirstPopulation()
+        self.generatingNewPopulation(None)
 
         while 1:
 
@@ -208,12 +213,20 @@ class GeneticAlgorithm:
             for i in range(len(self.population)):
                 populationFitness.append(self.chromosomeFitness(self.population[i]))
 
+            chromosomesCounter = 1
             # Pick the best and feasible
             while foundTheBestFeasible == 0:
+                # If none chromosome is feasible, newGeneration
+
                 candidateToBeTheBest = self.population[populationFitness.index(max(populationFitness))]
-                if self.feasibleSolution(candidateToBeTheBest) == 1:
+                if chromosomesCounter == self.SIZE_POPULATION:
                     foundTheBestFeasible = 1
-                    print("FITNESS: ", max(populationFitness))
                     self.generatingNewPopulation(candidateToBeTheBest)
                 else:
-                    populationFitness[populationFitness.index(max(populationFitness))] = 0
+                    if self.feasibleSolution(candidateToBeTheBest) == 1:
+                        foundTheBestFeasible = 1
+                        print("FITNESS: ", max(populationFitness))
+                        self.generatingNewPopulation(candidateToBeTheBest)
+                    else:
+                        chromosomesCounter += 1
+                        populationFitness[populationFitness.index(max(populationFitness))] = 0

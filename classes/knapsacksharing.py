@@ -32,8 +32,20 @@ class KnapsackSharing:
         f.close()
 
     def generatingGlpkData(self):
-        return
+        f = open('dat', 'w')
+        f.write('data;\n\n')
+        f.write('set G:= ')
 
+        for i in range(1, self.numGroups + 1):
+            f.write(i)
+        f.write('\n\n')
+
+        f.write('param w:		 1 2 :=')
+        #for i in range ()
+
+
+
+        f.close()
 
 
 
