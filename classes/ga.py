@@ -80,8 +80,6 @@ class GeneticAlgorithm:
 
     def crossover(self, chromosome1, chromosome2):
 
-        # 75% of chance to choose bit of the chromosome with better fitness
-
         if self.chromosomeFitness(chromosome1) > self.chromosomeFitness(chromosome2):
             higherFitnessChromosome = chromosome1
             lowerFitnessChromosome = chromosome2
@@ -158,6 +156,22 @@ class GeneticAlgorithm:
             chromosomeWinnerIndex = chromosomeIndexes[indexFromSecondPart]
             return self.population[chromosomeIndexes[chromosomeWinnerIndex]]
 
+    def rouletteSelection(self):
+
+        sumFitness = 0
+
+        for i in range(self.SIZE_POPULATION):
+            sumFitness += self.chromosomeFitness(self.population[i])
+
+        random.seed(self.seed)
+        randomProb = random.randint(0, sumFitness)
+        t = 0
+
+        for i in range(self.SIZE_POPULATION):
+            t += self.chromosomeFitness(self.population[i])
+            if t >= randomProb:
+                return self.population[i]
+
     def generatingNewPopulation(self, bestFromPreviousPopulation):
 
         # POPULATION DATA STRUCT: List (chromosomes) of lists (groups) of lists (items) of numbers 0|1
@@ -172,7 +186,7 @@ class GeneticAlgorithm:
 
         # ~50% of the population come from crossover
         for i in range(self.SIZE_POPULATION // 2):
-            newPopulation[i] = self.crossover(self.tournamentSelection(), self.tournamentSelection())
+            newPopulation[i] = self.crossover(self.rouletteSelection(), self.rouletteSelection())
             chromosomeIndex = i
 
         # And ~50% come from new chromosomes
