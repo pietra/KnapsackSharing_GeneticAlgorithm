@@ -5,11 +5,10 @@ import random
 
 class GeneticAlgorithm:
     def __init__(self, seed):
-        self.SIZE_POPULATION = 60
+        self.SIZE_POPULATION = 100
         self.MAX_GENERATION = 10000
         self.SAME_FITNESS_GENERATIONS = 0
         self.NUM_CHROMOSOMES_TOURNAMENT_SELECTION = 20
-        self.MUTATION_TAX = 1  # 0.001 %
         self.NUM_CLONED_CHROMOSOMES = 1
         self.seed = seed
         self.problemInstance = KnapsackSharing()
@@ -98,11 +97,11 @@ class GeneticAlgorithm:
                     chromosomeSon[groupIndex].append(higherFitnessChromosome[groupIndex][item])
                 else:
                     chromosomeSon[groupIndex].append(lowerFitnessChromosome[groupIndex][item])
-                # Probability of mutation = 0.001%
+                # Probability of mutation = 10%
                 random.seed(self.seed)
-                probMutation = random.randint(self.MUTATION_TAX, 1000)
+                probMutation = random.randint(1, 10)
                 # If mutation, flip bit
-                if probMutation <= self.MUTATION_TAX:
+                if probMutation <= 1:
                     if chromosomeSon[groupIndex][item] == 1:
                         chromosomeSon[groupIndex][item] = 0
                     else:
