@@ -12,7 +12,12 @@ class KnapsackSharing:
         self.numItems = int(f.readline())
         self.numGroups = int(f.readline())
         self.capacity = int(f.readline())
-        self.numItemsByGroups = (f.readline()).split()
+        self.numItemsByGroups = []
+
+        itemsByGroup = (f.readline()).split()
+
+        for item in itemsByGroup:
+            self.numItemsByGroups.append(int(item))
 
         # ITEMS DATA STRUCT: List (groups) of lists (items) of tuples (weight|value)
         self.items = []
