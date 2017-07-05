@@ -333,7 +333,7 @@ class GeneticAlgorithm:
         self.NUM_ITEMS_CHANGED_MUTATION = int(
             self.PERCENT_NUM_ITEMS_CHANGED_MUTATION * (min(self.problemInstance.numItemsByGroups)))
 
-        while self.sameBestFitness <= self.MAX_SAME_FITNESS_GENERATIONS:
+        while self.sameBestFitness <= self.MAX_SAME_FITNESS_GENERATIONS and self.currentGeneration < self.MAX_GENERATION:
 
             print('***********************************')
             print("      GENERATION NUMBER ", self.currentGeneration)
@@ -342,7 +342,7 @@ class GeneticAlgorithm:
             # Calculate fitness for all the chromosomes
             for i in range(len(self.population)):
                 populationFitness.append(self.chromosomeFitness(self.population[i], 0))
-            #print(populationFitness)
+            # print(populationFitness)
             print("      FITNESS: ", max(populationFitness))
             print('***********************************')
 
